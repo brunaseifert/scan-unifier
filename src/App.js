@@ -6,6 +6,7 @@ function App() {
   const [files, setFiles] = useState([]);
   const dropRef = useRef();
 
+  // Aceita arquivos de imagem ou PDF
   const handleFiles = (selectedFiles) => {
     const validFiles = Array.from(selectedFiles).filter(file =>
       file.type.startsWith('image/') || file.type === 'application/pdf'
@@ -42,14 +43,18 @@ function App() {
   };
 
   const generatePDF = async () => {
-    if (files.length === 0) {
-      alert("Nenhum arquivo selecionado.");
+    const supportedFiles = files.filter(file =>
+      file.type.startsWith('image/') || file.type === 'application/pdf'
+    );
+
+    if (supportedFiles.length === 0) {
+      alert("Nenhum arquivo suportado selecionado.");
       return;
     }
 
     const pdfDoc = await PDFDocument.create();
 
-    for (const file of files) {
+    for (const file of supportedFiles) {
       const fileBytes = await file.arrayBuffer();
 
       if (file.type === 'application/pdf') {
@@ -60,7 +65,7 @@ function App() {
           pdfDoc.addPage(page);
         });
       } else if (file.type.startsWith('image/')) {
-        // Embutir imagem como página
+        // Adicionar imagem como nova página
         let image;
         if (file.type === 'image/png') {
           image = await pdfDoc.embedPng(fileBytes);
