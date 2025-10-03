@@ -7,10 +7,10 @@ function App() {
   const dropRef = useRef();
 
   const handleFiles = (selectedFiles) => {
-    const imageFiles = Array.from(selectedFiles).filter(file =>
-      file.type.startsWith('image/')
+    const validFiles = Array.from(selectedFiles).filter(file =>
+      file.type.startsWith('image/') || file.type === 'application/pdf'
     );
-    setFiles(prev => [...prev, ...imageFiles]);
+    setFiles(prev => [...prev, ...validFiles]);
   };
 
   const handleInputChange = (e) => {
@@ -43,32 +43,42 @@ function App() {
 
   const generatePDF = async () => {
     if (files.length === 0) {
-      alert("Nenhuma imagem selecionada.");
+      alert("Nenhum arquivo selecionado.");
       return;
     }
 
     const pdfDoc = await PDFDocument.create();
 
     for (const file of files) {
-      const imageBytes = await file.arrayBuffer();
-      let image;
-      let dims;
+      const fileBytes = await file.arrayBuffer();
 
-      if (file.type === 'image/png') {
-        image = await pdfDoc.embedPng(imageBytes);
+      if (file.type === 'application/pdf') {
+        // Importar páginas do PDF existente
+        const donorPdf = await PDFDocument.load(fileBytes);
+        const copiedPages = await pdfDoc.copyPages(donorPdf, donorPdf.getPageIndices());
+        copiedPages.forEach((page) => {
+          pdfDoc.addPage(page);
+        });
+      } else if (file.type.startsWith('image/')) {
+        // Embutir imagem como página
+        let image;
+        if (file.type === 'image/png') {
+          image = await pdfDoc.embedPng(fileBytes);
+        } else {
+          image = await pdfDoc.embedJpg(fileBytes);
+        }
+
+        const dims = image.scale(1);
+        const page = pdfDoc.addPage([dims.width, dims.height]);
+        page.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: dims.width,
+          height: dims.height,
+        });
       } else {
-        image = await pdfDoc.embedJpg(imageBytes);
+        console.warn(`Tipo de arquivo ignorado: ${file.name}`);
       }
-
-      dims = image.scale(1);
-
-      const page = pdfDoc.addPage([dims.width, dims.height]);
-      page.drawImage(image, {
-        x: 0,
-        y: 0,
-        width: dims.width,
-        height: dims.height,
-      });
     }
 
     const pdfBytes = await pdfDoc.save();
@@ -84,7 +94,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>ScanUnifier 🖨 </h1>
+      <h1>ScanUnifier 🖨</h1>
 
       <div
         className="drop-zone"
@@ -93,14 +103,19 @@ function App() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
       >
-        <p>Arraste e solte imagens aqui ou clique abaixo</p>
-        <input type="file" multiple accept="image/*" onChange={handleInputChange} />
+        <p>Arraste e solte imagens ou PDFs aqui ou clique abaixo</p>
+        <input
+          type="file"
+          multiple
+          accept="image/*,application/pdf"
+          onChange={handleInputChange}
+        />
       </div>
 
       <ul>
         {files.map((file, i) => (
           <li key={i}>
-            {file.name}
+            {file.name} ({file.type})
             <button onClick={() => removeFile(i)}>Remover</button>
           </li>
         ))}
