@@ -16,5 +16,4 @@ ScanUnifier é uma aplicação web feita em React que permite unificar várias i
 - React
 - pdf-lib (para geração do PDF)
 - HTML5 Drag and Drop API
-- CSS para estilização
 
